@@ -67,8 +67,31 @@ class WhileStatement(Expression):
     def codegen(self):
         codegen_e1 = self.codegen_expression(self.e1)
         codegen_s1 = list(itertools.chain(*[i.codegen() for i in self.s1]))
-        jump_distance_s1 = self.vm.get_program_len() + len(codegen_e1) + len(codegen_s1) + 2
+        jump_distance_s1 = self.vm.get_program_len() + len(codegen_e1) + \
+            len(codegen_s1) + 2
         return codegen_e1 + ['jumpz ' + str(jump_distance_s1)] + codegen_s1 + ['jump ' + str(self.vm.get_program_len())]
+
+
+class ForStatement(Expression):
+
+    def __init__(self, vm, e1, e2, e3, s1):
+        super(ForStatement, self).__init__(vm)
+        self.e1 = e1
+        self.e2 = e2
+        self.e3 = e3
+        self.s1 = s1
+
+    def codegen(self):
+        codegen_e1 = self.codegen_expression(self.e1)
+        codegen_e2 = self.codegen_expression(self.e2)
+        codegen_e3 = self.codegen_expression(self.e3)
+        codegen_s1 = list(itertools.chain(*[i.codegen() for i in self.s1]))
+
+        jump_distance_a = self.vm.get_program_len() + len(codegen_e1) + 1
+        jump_distance_b = self.vm.get_program_len() + len(codegen_e1) + \
+            len(codegen_e2) + len(codegen_e3) + len(codegen_s1) + 4
+
+        return codegen_e1 + ['pop'] + codegen_e2 + ['jumpz ' + str(jump_distance_b)] + codegen_s1 + codegen_e3 + ['pop'] + ['jump ' + str(jump_distance_a)]
 
 
 class BinaryExpression(Expression):
@@ -219,7 +242,6 @@ class VM(object):
             self.PC += 1
             self.IR.execute_ir(ir_exp)
 
-
     def address(self, name):
         return self.stack_frame.address(name)
 
@@ -303,9 +325,12 @@ if __name__ == '__main__':
 
     e1 = BinaryExpression(vm, 'x', 100, '<=')
     s1 = [
-        Statement(AssignmentExpression(vm, 'sum', BinaryExpression(vm, 'sum', 'x', '+'))),
-        Statement(AssignmentExpression(vm, 'count', BinaryExpression(vm, 'count', 1, '+'))),
-        Statement(AssignmentExpression(vm, 'x', BinaryExpression(vm, 'x', 1, '+')))
+        Statement(AssignmentExpression(
+            vm, 'sum', BinaryExpression(vm, 'sum', 'x', '+'))),
+        Statement(AssignmentExpression(
+            vm, 'count', BinaryExpression(vm, 'count', 1, '+'))),
+        Statement(
+            AssignmentExpression(vm, 'x', BinaryExpression(vm, 'x', 1, '+')))
     ]
 
     while_statement = WhileStatement(vm, e1, s1)
@@ -314,3 +339,25 @@ if __name__ == '__main__':
     vm.run()
     logging.warn('result of sum = %d' % vm.inspect('sum'))
     logging.warn('result of count = %d' % vm.inspect('count'))
+
+    # test 5
+    # x = 0 sum = 0
+    # for( x = 1 ; x <= 100; x = x + 1) sum = sum + x ;
+
+    vm = VM()
+    vm.static_assign('x', 0)
+    vm.static_assign('sum', 0)
+
+    e1 = AssignmentExpression(vm, 'x', 1)
+    e2 = BinaryExpression(vm, 'x', 100, '<=')
+    e3 = AssignmentExpression(vm, 'x', BinaryExpression(vm, 'x', 1, '+'))
+
+    s1 = [
+        Statement(AssignmentExpression(
+            vm, 'sum', BinaryExpression(vm, 'sum', 'x', '+'))),
+    ]
+
+    for_statement = ForStatement(vm, e1, e2, e3, s1)
+    for_statement.push_code()
+    vm.run()
+    logging.warn('result of sum = %d' % vm.inspect('sum'))
