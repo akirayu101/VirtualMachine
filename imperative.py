@@ -172,6 +172,10 @@ class VM(object):
     def static_assign(self, name, value):
         self.stack_frame.assign(name, value)
 
+    def inspect(self, name):
+        address = self.address(name)
+        return self.S[address]
+
 
 class StackFrame(object):
     def __init__(self, vm, pre_stack_frame):
@@ -208,4 +212,4 @@ if __name__ == '__main__':
     vm.static_assign('x', None)
     vm.C = AssignmentExpression(vm, 'x', BinaryExpression(vm, 3, 2, '*')).codegen()
     vm.run()
-    logging.warn('result of x = 3*2')
+    logging.warn('result of x = 3*2 %d' % vm.inspect('x'))
