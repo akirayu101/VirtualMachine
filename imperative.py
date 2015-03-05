@@ -4,8 +4,50 @@ import operator
 from functools import partial
 
 
-class Code(object):
-    pass
+class Expression(object):
+    def __init__(self):
+        pass
+
+    def codegen(self):
+        pass
+
+
+class BinaryExpression(Expression):
+
+    op_dict = {
+        '+': 'add',
+        '-': 'sub',
+        '/': 'div',
+        '%': 'mod',
+        '*': 'mul',
+        '&&': 'and',
+        '!=': 'neq',
+        '<=': 'leq',
+        '<': 'le',
+        '>': 'gr',
+        '>=': 'geq',
+        '||': 'or',
+    }
+
+    def __init__(self, left, right, op):
+        super(BinaryExpression, self).__init__()
+        self.left = left
+        self.right = right
+        self.op = op
+
+    def codegen(self):
+
+        if isinstance(self.left, Expression):
+            codegen_l = self.left.codegen()
+        else:
+            codegen_l = ['loadc ' + str(self.left)]
+
+        if isinstance(self.right, Expression):
+            codegen_r = self.right.codegen()
+        else:
+            codegen_r = ['loadc ' + str(self.right)]
+
+        return codegen_l + codegen_r + [BinaryExpression.op_dict[self.op]]
 
 
 class IR(object):
@@ -109,11 +151,9 @@ class VM(object):
             self.PC += 1
 
 if __name__ == '__main__':
-    imperative_vm = VM()
+    exp = BinaryExpression(BinaryExpression(1, 2, '+'), 3, '*')
+    vm = VM()
+    vm.C = exp.codegen()
+    vm.run()
 
-    imperative_vm.C.append('loadc 1')
-    imperative_vm.C.append('loadc 12')
-    imperative_vm.C.append('add')
-    imperative_vm.C.append('loadc 4')
-    imperative_vm.C.append('mul')
-    imperative_vm.run()
+    pass
