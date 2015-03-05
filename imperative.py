@@ -7,6 +7,7 @@ from functools import partial
 
 
 class Expression(object):
+
     def __init__(self, vm):
         self.vm = vm
 
@@ -26,6 +27,7 @@ class Expression(object):
 
 
 class Statement(object):
+
     def __init__(self, exp):
         self.exp = exp
 
@@ -46,12 +48,16 @@ class IfStatement(Expression):
         codegen_e1 = self.codegen_expression(self.e1)
         codegen_s1 = list(itertools.chain(*[i.codegen() for i in self.s1]))
         codegen_s2 = list(itertools.chain(*[i.codegen() for i in self.s2]))
-        jump_distance = self.vm.get_program_len() + len(codegen_e1) + len(codegen_s1) + 1
-        return codegen_e1 + ['jumpz ' + str(jump_distance)] + codegen_s1 + codegen_s2
+        jump_distance_s1 = self.vm.get_program_len() + len(codegen_e1) + \
+            len(codegen_s1) + 1
+        jump_distance_s2 = self.vm.get_program_len() + len(codegen_e1) + \
+            len(codegen_s1) + len(codegen_s2) + 1
+
+        return codegen_e1 + ['jumpz ' + str(jump_distance_s1)] + codegen_s1 + [
+            'jump ' + str(jump_distance_s2)] + codegen_s2
 
 
 class BinaryExpression(Expression):
-
     op_dict = {
         '+': 'add',
         '-': 'sub',
@@ -74,7 +80,6 @@ class BinaryExpression(Expression):
         self.op = op
 
     def codegen(self):
-
         codegen_l = self.codegen_expression(self.left)
         codegen_r = self.codegen_expression(self.right)
 
@@ -96,6 +101,7 @@ class AssignmentExpression(Expression):
 
 
 class IR(object):
+
     def __init__(self, vm):
         self.vm = vm
 
@@ -147,7 +153,7 @@ class IR(object):
 
     def jumpz(self, address):
         value = self.vm.S.pop()
-        if value is 0:
+        if value in [0, False]:
             self.vm.PC = address
 
     def pop(self):
@@ -182,6 +188,7 @@ class IR(object):
 
 
 class VM(object):
+
     def __init__(self):
         self.S = []  # main memory
         self.C = []  # program ir stack
@@ -210,19 +217,23 @@ class VM(object):
 
 
 class StackFrame(object):
+
     def __init__(self, vm, pre_stack_frame):
         self.vm = vm
-        self.pre_stack_frame = pre_stack_frame  # save pre stack frame as linked list
+        # save pre stack frame as linked list
+        self.pre_stack_frame = pre_stack_frame
         self.start_frame_addr = len(self.vm.S)  # start addr for val find
-        self.env = {}                           # variable address dict
+        self.env = {}  # variable address dict
 
     def address(self, name):
         if self.env.get(name) is None:
-            logging.warning("find variable [%s] in current stack frame env error" % name)
+            logging.warning(
+                "find variable [%s] in current stack frame env error" % name)
         else:
             return self.env.get(name)
 
-    # stack frame assign should already finished before interpret whole program(static allocation)
+    # stack frame assign should already finished before interpret whole
+    # program(static allocation)
     def assign(self, name, value):
         self.vm.S.append(value)
         self.env[name] = len(self.vm.S) - self.start_frame_addr - 1
@@ -230,14 +241,12 @@ class StackFrame(object):
 
 
 if __name__ == '__main__':
-
     # test 1 (1+2)*3
     vm = VM()
     exp = BinaryExpression(vm, BinaryExpression(vm, 1, 2, '+'), 3, '*')
     exp.push_code()
     vm.run()
     logging.warning('result of (1+2)*3 is %d' % vm.S[-1])
-
 
     # test x = 3 * 2
     vm = VM()
@@ -246,13 +255,12 @@ if __name__ == '__main__':
     vm.run()
     logging.warn('result of x = 3*2 %d' % vm.inspect('x'))
 
-
     # test
     # x = 10, y = 5
     # if ((x+y) > 10) x = 1024; else y = 42;
 
     vm = VM()
-    vm.static_assign('x', 1)
+    vm.static_assign('x', 10)
     vm.static_assign('y', 5)
 
     e1 = BinaryExpression(vm, BinaryExpression(vm, 'x', 'y', '+'), 10, '>')
