@@ -49,12 +49,26 @@ class IfStatement(Expression):
         codegen_s1 = list(itertools.chain(*[i.codegen() for i in self.s1]))
         codegen_s2 = list(itertools.chain(*[i.codegen() for i in self.s2]))
         jump_distance_s1 = self.vm.get_program_len() + len(codegen_e1) + \
-            len(codegen_s1) + 1
+            len(codegen_s1) + 2
         jump_distance_s2 = self.vm.get_program_len() + len(codegen_e1) + \
-            len(codegen_s1) + len(codegen_s2) + 1
+            len(codegen_s1) + len(codegen_s2) + 2
 
         return codegen_e1 + ['jumpz ' + str(jump_distance_s1)] + codegen_s1 + [
             'jump ' + str(jump_distance_s2)] + codegen_s2
+
+
+class WhileStatement(Expression):
+
+    def __init__(self, vm, e1, s1):
+        super(WhileStatement, self).__init__(vm)
+        self.e1 = e1
+        self.s1 = s1
+
+    def codegen(self):
+        codegen_e1 = self.codegen_expression(self.e1)
+        codegen_s1 = list(itertools.chain(*[i.codegen() for i in self.s1]))
+        jump_distance_s1 = self.vm.get_program_len() + len(codegen_e1) + len(codegen_s1) + 2
+        return codegen_e1 + ['jumpz ' + str(jump_distance_s1)] + codegen_s1 + ['jump ' + str(self.vm.get_program_len())]
 
 
 class BinaryExpression(Expression):
@@ -159,6 +173,9 @@ class IR(object):
     def pop(self):
         self.vm.S.pop()
 
+    def dup(self):
+        self.vm.S.append(self.vm.S[-1])
+
     def binary_op(self, op_name):
         r = self.vm.S.pop()
         l = self.vm.S.pop()
@@ -199,8 +216,9 @@ class VM(object):
     def run(self):
         while self.PC != len(self.C):
             ir_exp = self.C[self.PC]
-            self.IR.execute_ir(ir_exp)
             self.PC += 1
+            self.IR.execute_ir(ir_exp)
+
 
     def address(self, name):
         return self.stack_frame.address(name)
@@ -241,24 +259,25 @@ class StackFrame(object):
 
 
 if __name__ == '__main__':
-    # test 1 (1+2)*3
+    # test 1
+    # (1+2)*3
     vm = VM()
     exp = BinaryExpression(vm, BinaryExpression(vm, 1, 2, '+'), 3, '*')
     exp.push_code()
     vm.run()
     logging.warning('result of (1+2)*3 is %d' % vm.S[-1])
 
-    # test x = 3 * 2
+    # test 2
+    # x = 3 * 2
     vm = VM()
     vm.static_assign('x', None)
     AssignmentExpression(vm, 'x', BinaryExpression(vm, 3, 2, '*')).push_code()
     vm.run()
     logging.warn('result of x = 3*2 %d' % vm.inspect('x'))
 
-    # test
+    # test 3
     # x = 10, y = 5
     # if ((x+y) > 10) x = 1024; else y = 42;
-
     vm = VM()
     vm.static_assign('x', 10)
     vm.static_assign('y', 5)
@@ -273,3 +292,25 @@ if __name__ == '__main__':
     vm.run()
     logging.warn('result of x = %d' % vm.inspect('x'))
     logging.warn('result of y = %d' % vm.inspect('y'))
+
+    # test 4
+    # x = 0 sum = 0 count 0
+    # while (x <= 100) sum = sum + x; count = count + 1; x = x + 1;
+    vm = VM()
+    vm.static_assign('x', 0)
+    vm.static_assign('sum', 0)
+    vm.static_assign('count', 0)
+
+    e1 = BinaryExpression(vm, 'x', 100, '<=')
+    s1 = [
+        Statement(AssignmentExpression(vm, 'sum', BinaryExpression(vm, 'sum', 'x', '+'))),
+        Statement(AssignmentExpression(vm, 'count', BinaryExpression(vm, 'count', 1, '+'))),
+        Statement(AssignmentExpression(vm, 'x', BinaryExpression(vm, 'x', 1, '+')))
+    ]
+
+    while_statement = WhileStatement(vm, e1, s1)
+    while_statement.push_code()
+
+    vm.run()
+    logging.warn('result of sum = %d' % vm.inspect('sum'))
+    logging.warn('result of count = %d' % vm.inspect('count'))
