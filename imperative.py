@@ -17,6 +17,7 @@ class IR(object):
             'sub': operator.sub,
             'div': operator.div,
             'mod': operator.mod,
+            'mul': operator.mul,
             'and': operator.iand,
             'neq': lambda a, b: a != b,
             'leq': operator.le,
@@ -35,10 +36,10 @@ class IR(object):
         self.init_binary_ops()
         self.init_unary_ops()
 
-    def load_const(self, q):
+    def loadc(self, q):
         self.vm.S.append(q)
 
-    def loadc(self):
+    def load(self):
         address = self.vm.S.pop()
         self.vm.S.append(self.vm.S[address])
 
@@ -107,15 +108,12 @@ class VM(object):
             self.IR.execute_ir(ir_exp)
             self.PC += 1
 
-
 if __name__ == '__main__':
     imperative_vm = VM()
 
-    imperative_vm.S.append(1)
-    imperative_vm.S.append(4)
-
-    imperative_vm.C.append('sub')
-
+    imperative_vm.C.append('loadc 1')
+    imperative_vm.C.append('loadc 12')
+    imperative_vm.C.append('add')
+    imperative_vm.C.append('loadc 4')
+    imperative_vm.C.append('mul')
     imperative_vm.run()
-
-    pass
