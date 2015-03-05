@@ -11,6 +11,13 @@ class Expression(object):
     def codegen(self):
         pass
 
+    @staticmethod
+    def codegen_expression(e):
+        if isinstance(e, Expression):
+            return e.codegen()
+        else:
+            return ['loadc ' + str(e)]
+
 
 class BinaryExpression(Expression):
 
@@ -37,15 +44,8 @@ class BinaryExpression(Expression):
 
     def codegen(self):
 
-        if isinstance(self.left, Expression):
-            codegen_l = self.left.codegen()
-        else:
-            codegen_l = ['loadc ' + str(self.left)]
-
-        if isinstance(self.right, Expression):
-            codegen_r = self.right.codegen()
-        else:
-            codegen_r = ['loadc ' + str(self.right)]
+        codegen_l = Expression.codegen_expression(self.left)
+        codegen_r = Expression.codegen_expression(self.right)
 
         return codegen_l + codegen_r + [BinaryExpression.op_dict[self.op]]
 
