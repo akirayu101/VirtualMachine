@@ -1,6 +1,7 @@
 __author__ = 'hzyuxin'
 
 import operator
+import logging
 from functools import partial
 
 
@@ -90,11 +91,11 @@ class IR(object):
 
     def store(self):
         address = self.vm.S.pop()
-        value = self.vm.S.top()
+        value = self.vm.S[-1]
         self.vm.S[address] = value
 
     def storea(self, address):
-        value = self.vm.S.top()
+        value = self.vm.S[-1]
         self.vm.S[address] = value
 
     def jump(self, address):
@@ -141,8 +142,8 @@ class VM(object):
         self.S = []  # main memory
         self.C = []  # program ir stack
         self.PC = 0  # program counter
-
         self.IR = IR(self)
+        self.stack_frame = StackFrame(self, None)
 
     def run(self):
         while self.PC != len(self.C):
@@ -150,10 +151,38 @@ class VM(object):
             self.IR.execute_ir(ir_exp)
             self.PC += 1
 
+    def address(self, name):
+        return self.stack_frame.address(name)
+
+    def static_assign(self, name, value):
+        self.stack_frame.assign(name, value)
+
+
+class StackFrame(object):
+    def __init__(self, vm, pre_stack_frame):
+        self.vm = vm
+        self.pre_stack_frame = pre_stack_frame  # save pre stack frame as linked list
+        self.start_frame_addr = len(self.vm.S)  # start addr for val find
+        self.env = {}                           # variable address dict
+
+    def address(self, name):
+        if self.env.get(name) is None:
+            logging.warning("find variable [%s] in current stack frame env error" % name)
+        else:
+            return self.env.get(name)
+
+    # stack frame assign should already finished before interpret whole program(static allocation)
+    def assign(self, name, value):
+        self.vm.S.append(value)
+        self.env[name] = len(self.vm.S) - self.start_frame_addr - 1
+        pass
+
+
 if __name__ == '__main__':
     exp = BinaryExpression(BinaryExpression(1, 2, '+'), 3, '*')
     vm = VM()
     vm.C = exp.codegen()
     vm.run()
+    logging.warning('result of (1+2)*3 is %d' % vm.S[-1])
 
     pass
