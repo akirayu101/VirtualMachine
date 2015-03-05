@@ -2,18 +2,46 @@ __author__ = 'hzyuxin'
 
 import operator
 
+
 class Code(object):
     pass
+
 
 class IR(object):
     def __init__(self, vm):
         self.vm = vm
         self.init_binary_ops()
         self.init_unary_ops()
-        self.init_other_op()
 
     def load_const(self, q):
         self.vm.S.append(q)
+
+    def loadc(self):
+        address = self.vm.S.pop()
+        self.vm.S.append(self.vm.S[address])
+
+    def loada(self, address):
+        self.vm.S.append(self.vm.S[address])
+
+    def store(self):
+        address = self.vm.S.pop()
+        value = self.vm.S.top()
+        self.vm.S[address] = value
+
+    def storea(self, address):
+        value = self.vm.S.top()
+        self.vm.S[address] = value
+
+    def jump(self, address):
+        self.vm.PC = address
+
+    def jumpz(self, address):
+        value = self.vm.S.pop()
+        if value is 0:
+            self.vm.PC = address
+
+    def pop(self):
+        self.vm.S.pop()
 
     def binary_op(self, lam):
         l = self.vm.S.pop()
@@ -23,9 +51,6 @@ class IR(object):
     def unary_op(self, lam):
         l = self.vm.S.pop()
         self.vm.S.append(lam(l))
-
-    def init_other_op(self):
-        self.loadc = self.load_const
 
     def init_binary_ops(self):
         binary_ops = {
@@ -48,8 +73,8 @@ class IR(object):
 
     def init_unary_ops(self):
         unary_ops = {
-            'neg':operator.neg,
-            'not':operator.not_,
+            'neg': operator.neg,
+            'not': operator.not_,
         }
 
         for k, v in unary_ops.iteritems():
@@ -58,8 +83,9 @@ class IR(object):
 
 class VM(object):
     def __init__(self):
-        self.S = []
-        self.C = []
+        self.S = []  # main memory
+        self.C = []  # program ir stack
+        self.PC = 0  # program counter
 
 if __name__ == '__main__':
     vm = VM()
