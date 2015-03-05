@@ -6,8 +6,8 @@ from functools import partial
 
 
 class Expression(object):
-    def __init__(self):
-        pass
+    def __init__(self, vm):
+        self.vm = vm
 
     def codegen(self):
         pass
@@ -37,8 +37,8 @@ class BinaryExpression(Expression):
         '||': 'or',
     }
 
-    def __init__(self, left, right, op):
-        super(BinaryExpression, self).__init__()
+    def __init__(self, vm, left, right, op):
+        super(BinaryExpression, self).__init__(vm)
         self.left = left
         self.right = right
         self.op = op
@@ -49,6 +49,21 @@ class BinaryExpression(Expression):
         codegen_r = Expression.codegen_expression(self.right)
 
         return codegen_l + codegen_r + [BinaryExpression.op_dict[self.op]]
+
+
+class AssignmentExpression(Expression):
+
+    def __init__(self, vm, left, right):
+        super(AssignmentExpression, self).__init__(vm)
+        self.left = left
+        self.right = right
+
+    def codegen(self):
+        address = self.vm.address(self.left)
+
+        codegen_l = ['loadc ' + str(address)]
+        codegen_r = Expression.codegen_expression(self.right)
+        return codegen_r + codegen_l + ['store']
 
 
 class IR(object):
@@ -179,10 +194,18 @@ class StackFrame(object):
 
 
 if __name__ == '__main__':
-    exp = BinaryExpression(BinaryExpression(1, 2, '+'), 3, '*')
+
+    # test 1 (1+2)*3
     vm = VM()
+    exp = BinaryExpression(vm, BinaryExpression(vm, 1, 2, '+'), 3, '*')
     vm.C = exp.codegen()
     vm.run()
     logging.warning('result of (1+2)*3 is %d' % vm.S[-1])
 
-    pass
+
+    # test x = 1
+    vm = VM()
+    vm.static_assign('x', None)
+    vm.C = AssignmentExpression(vm, 'x', BinaryExpression(vm, 3, 2, '*')).codegen()
+    vm.run()
+    logging.warn('result of x = 3*2')
