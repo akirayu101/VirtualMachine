@@ -2,6 +2,7 @@ __author__ = 'hzyuxin'
 
 import operator
 import logging
+import itertools
 from functools import partial
 
 
@@ -12,12 +13,41 @@ class Expression(object):
     def codegen(self):
         pass
 
-    @staticmethod
-    def codegen_expression(e):
+    def codegen_expression(self, e):
         if isinstance(e, Expression):
             return e.codegen()
-        else:
+        elif isinstance(e, int):
             return ['loadc ' + str(e)]
+        elif isinstance(e, str):
+            return ['loada ' + str(self.vm.address(e))]
+
+    def push_code(self):
+        self.vm.C.extend(self.codegen())
+
+
+class Statement(object):
+    def __init__(self, exp):
+        self.exp = exp
+
+    def codegen(self):
+        return self.exp.codegen() + ['pop']
+
+
+# if(e1) s1 else s2, s1 and s2 are list of statements
+class IfStatement(Expression):
+
+    def __init__(self, vm, e1, s1, s2):
+        super(IfStatement, self).__init__(vm)
+        self.e1 = e1
+        self.s1 = s1
+        self.s2 = s2
+
+    def codegen(self):
+        codegen_e1 = self.codegen_expression(self.e1)
+        codegen_s1 = list(itertools.chain(*[i.codegen() for i in self.s1]))
+        codegen_s2 = list(itertools.chain(*[i.codegen() for i in self.s2]))
+        jump_distance = self.vm.get_program_len() + len(codegen_e1) + len(codegen_s1) + 1
+        return codegen_e1 + ['jumpz ' + str(jump_distance)] + codegen_s1 + codegen_s2
 
 
 class BinaryExpression(Expression):
@@ -45,8 +75,8 @@ class BinaryExpression(Expression):
 
     def codegen(self):
 
-        codegen_l = Expression.codegen_expression(self.left)
-        codegen_r = Expression.codegen_expression(self.right)
+        codegen_l = self.codegen_expression(self.left)
+        codegen_r = self.codegen_expression(self.right)
 
         return codegen_l + codegen_r + [BinaryExpression.op_dict[self.op]]
 
@@ -60,9 +90,8 @@ class AssignmentExpression(Expression):
 
     def codegen(self):
         address = self.vm.address(self.left)
-
         codegen_l = ['loadc ' + str(address)]
-        codegen_r = Expression.codegen_expression(self.right)
+        codegen_r = self.codegen_expression(self.right)
         return codegen_r + codegen_l + ['store']
 
 
@@ -176,6 +205,9 @@ class VM(object):
         address = self.address(name)
         return self.S[address]
 
+    def get_program_len(self):
+        return len(self.C)
+
 
 class StackFrame(object):
     def __init__(self, vm, pre_stack_frame):
@@ -202,14 +234,34 @@ if __name__ == '__main__':
     # test 1 (1+2)*3
     vm = VM()
     exp = BinaryExpression(vm, BinaryExpression(vm, 1, 2, '+'), 3, '*')
-    vm.C = exp.codegen()
+    exp.push_code()
     vm.run()
     logging.warning('result of (1+2)*3 is %d' % vm.S[-1])
 
 
-    # test x = 1
+    # test x = 3 * 2
     vm = VM()
     vm.static_assign('x', None)
-    vm.C = AssignmentExpression(vm, 'x', BinaryExpression(vm, 3, 2, '*')).codegen()
+    AssignmentExpression(vm, 'x', BinaryExpression(vm, 3, 2, '*')).push_code()
     vm.run()
     logging.warn('result of x = 3*2 %d' % vm.inspect('x'))
+
+
+    # test
+    # x = 10, y = 5
+    # if ((x+y) > 10) x = 1024; else y = 42;
+
+    vm = VM()
+    vm.static_assign('x', 1)
+    vm.static_assign('y', 5)
+
+    e1 = BinaryExpression(vm, BinaryExpression(vm, 'x', 'y', '+'), 10, '>')
+    s1 = [Statement(AssignmentExpression(vm, 'x', 1024))]
+    s2 = [Statement(AssignmentExpression(vm, 'y', 42))]
+
+    if_statement = IfStatement(vm, e1, s1, s2)
+    if_statement.push_code()
+
+    vm.run()
+    logging.warn('result of x = %d' % vm.inspect('x'))
+    logging.warn('result of y = %d' % vm.inspect('y'))
