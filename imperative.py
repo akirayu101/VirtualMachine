@@ -35,6 +35,24 @@ class Statement(object):
         return self.exp.codegen() + ['pop']
 
 
+class BreakStatement(Statement):
+
+    def __init__(self):
+        super(BreakStatement, self).__init__(None)
+
+    def codegen(self):
+        return ['break']
+
+
+class ContinueStatement(Statement):
+
+    def __init__(self):
+        super(ContinueStatement, self).__init__(None)
+
+    def codegen(self):
+        return ['continue']
+
+
 # if(e1) s1 else s2, s1 and s2 are list of statements
 class IfStatement(Expression):
 
