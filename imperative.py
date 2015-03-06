@@ -62,10 +62,18 @@ class ContinueStatement(Statement):
         return ['continue']
 
 
+class PrintStatement(Statement):
+    def __init__(self, name):
+        super(PrintStatement, self).__init__(None)
+        self.name = name
+
+    def codegen(self):
+        return ['show ' + self.name]
+
+
 # block statements, include if_statement, while_statement and for_statement
 # 1.all block statements require jump and jumpz for implementation
 # 2.jumpz need a current block position for right jump to solve nested blocks
-
 # if(e1) s1 else s2, s1 and s2 are list of statements
 class IfStatement(Expression):
 
@@ -276,6 +284,9 @@ class IR(object):
         if value in [0, False]:
             self.vm.PC = address
 
+    def show(self, variable_name):
+        logging.warn('show variable name %s[%d]' % (variable_name, self.vm.inspect(variable_name)))
+
     def pop(self):
         self.vm.S.pop()
 
@@ -306,7 +317,10 @@ class IR(object):
     def execute_ir(self, ir_exp):
         ir_exp = ir_exp.split()
         ir_name = ir_exp[0]
-        ir_args = [int(i) for i in ir_exp[1:]]
+        try:
+            ir_args = [int(i) for i in ir_exp[1:]]
+        except ValueError:
+            ir_args = ir_exp[1:]
         getattr(self, ir_name)(*ir_args)
 
 
@@ -425,7 +439,7 @@ if __name__ == '__main__':
 
     # test 5
     # x = 0 sum = 0
-    # for( x = 1 ; x <= 100; x = x + 1) sum = sum + x ;
+    # for( x = 1 ; x <= 100; x = x + 1) sum = sum + x ; print sum
 
     vm = VM()
     vm.static_assign('x', 0)
@@ -438,6 +452,7 @@ if __name__ == '__main__':
     s1 = [
         Statement(AssignmentExpression(
             vm, 'sum', BinaryExpression(vm, 'sum', 'x', '+'))),
+        PrintStatement('sum'),
     ]
 
     for_statement = ForStatement(vm, e1, e2, e3, s1)
