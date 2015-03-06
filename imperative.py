@@ -31,6 +31,18 @@ class Expression(object):
     def push_sub_code(self, sub_code):
         self.vm.C.extend(sub_code)
 
+    @staticmethod
+    def replace_break_continue(statements, break_address, continue_address):
+        for i, statement in enumerate(statements):
+            if statement == 'break':
+                statements[i] = 'jump ' + str(break_address)
+            elif statement == 'continue':
+                statements[i] = 'jump ' + str(continue_address)
+            else:
+                pass
+
+        return statements
+
 
 class Statement(Expression):
 
@@ -142,7 +154,11 @@ class WhileStatement(Expression):
 
         jump_distance_s1 = self.vm.get_program_len() + len(codegen_e1) + \
             len(codegen_s1) + 2 + self.offset
-        return codegen_e1 + ['jumpz ' + str(jump_distance_s1)] + codegen_s1 + ['jump ' + str(self.vm.get_program_len() + self.offset)]
+
+        break_address = jump_distance_s1
+        continue_address = self.vm.get_program_len() + self.offset
+
+        return Expression.replace_break_continue(codegen_e1 + ['jumpz ' + str(jump_distance_s1)] + codegen_s1 + ['jump ' + str(self.vm.get_program_len() + self.offset)], break_address, continue_address)
 
 
 # for(e1;e2;e3) s1
@@ -182,7 +198,10 @@ class ForStatement(Expression):
         jump_distance_b = self.vm.get_program_len() + len(codegen_e1) + \
             len(codegen_e2) + len(codegen_e3) + len(codegen_s1) + 4 + self.offset
 
-        return codegen_e1 + ['pop'] + codegen_e2 + ['jumpz ' + str(jump_distance_b)] + codegen_s1 + codegen_e3 + ['pop'] + ['jump ' + str(jump_distance_a)]
+        break_address = jump_distance_b
+        continue_address = jump_distance_a
+
+        return Expression.replace_break_continue(codegen_e1 + ['pop'] + codegen_e2 + ['jumpz ' + str(jump_distance_b)] + codegen_s1 + codegen_e3 + ['pop'] + ['jump ' + str(jump_distance_a)], break_address, continue_address)
 
 
 class BinaryExpression(Expression):
@@ -467,6 +486,7 @@ if __name__ == '__main__':
     #     while(sum < 10)
     #           sum + = 1
     #           print sum
+    #           continue
     #     sum += x
 
     vm = VM()
@@ -481,7 +501,8 @@ if __name__ == '__main__':
     while_s1 = [
         Statement(AssignmentExpression(
             vm, 'sum', BinaryExpression(vm, 'sum', 1, '+'))),
-        PrintStatement('sum')
+        PrintStatement('sum'),
+        ContinueStatement()
     ]
 
     while_statement = WhileStatement(vm, while_e1, while_s1)
