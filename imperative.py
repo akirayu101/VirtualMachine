@@ -25,6 +25,9 @@ class Expression(object):
     def push_code(self):
         self.vm.C.extend(self.codegen())
 
+    def push_sub_code(self, sub_code):
+        self.vm.C.extend(sub_code)
+
 
 class Statement(object):
 
@@ -53,6 +56,10 @@ class ContinueStatement(Statement):
         return ['continue']
 
 
+# block statements, include if_statement, while_statement and for_statement
+# 1.all block statements require jump and jumpz for implementation
+# 2.jumpz need a current block position for right jump to solve nested blocks
+
 # if(e1) s1 else s2, s1 and s2 are list of statements
 class IfStatement(Expression):
 
@@ -75,6 +82,7 @@ class IfStatement(Expression):
             'jump ' + str(jump_distance_s2)] + codegen_s2
 
 
+# while(e1) s1
 class WhileStatement(Expression):
 
     def __init__(self, vm, e1, s1):
@@ -90,6 +98,7 @@ class WhileStatement(Expression):
         return codegen_e1 + ['jumpz ' + str(jump_distance_s1)] + codegen_s1 + ['jump ' + str(self.vm.get_program_len())]
 
 
+# for(e1;e2;e3) s1
 class ForStatement(Expression):
 
     def __init__(self, vm, e1, e2, e3, s1):
