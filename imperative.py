@@ -2,7 +2,6 @@ __author__ = 'hzyuxin'
 
 import operator
 import logging
-import itertools
 from functools import partial
 
 
@@ -143,7 +142,7 @@ class WhileStatement(Expression):
 
         jump_distance_s1 = self.vm.get_program_len() + len(codegen_e1) + \
             len(codegen_s1) + 2 + self.offset
-        return codegen_e1 + ['jumpz ' + str(jump_distance_s1)] + codegen_s1 + ['jump ' + str(self.vm.get_program_len())]
+        return codegen_e1 + ['jumpz ' + str(jump_distance_s1)] + codegen_s1 + ['jump ' + str(self.vm.get_program_len() + self.offset)]
 
 
 # for(e1;e2;e3) s1
@@ -158,13 +157,14 @@ class ForStatement(Expression):
 
     def codegen(self):
         '''
-        A:
         code e1
         pop
+        A:
         code e2
         jumpz B
         code s1
         code e3
+        pop
         jump A
         B:
         '''
@@ -452,10 +452,49 @@ if __name__ == '__main__':
     s1 = [
         Statement(AssignmentExpression(
             vm, 'sum', BinaryExpression(vm, 'sum', 'x', '+'))),
-        PrintStatement('sum'),
+        #PrintStatement('sum'),
     ]
 
     for_statement = ForStatement(vm, e1, e2, e3, s1)
     for_statement.push_code()
     vm.run()
     logging.warn('result of sum = %d' % vm.inspect('sum'))
+
+
+    # test 6
+    # x = 0 sum = 0
+    # for( x = 1; x <= 100; x = x + 1 )
+    #     while(sum < 10)
+    #           sum + = 1
+    #           print sum
+    #     sum += x
+
+    vm = VM()
+    vm.static_assign('x', 0)
+    vm.static_assign('sum', 0)
+
+    for_e1 = AssignmentExpression(vm, 'x', 1)
+    for_e2 = BinaryExpression(vm, 'x', 100, '<=')
+    for_e3 = AssignmentExpression(vm, 'x', BinaryExpression(vm, 'x', 1, '+'))
+
+    while_e1 = BinaryExpression(vm, 'sum', 10, '<')
+    while_s1 = [
+        Statement(AssignmentExpression(
+            vm, 'sum', BinaryExpression(vm, 'sum', 1, '+'))),
+        PrintStatement('sum')
+    ]
+
+    while_statement = WhileStatement(vm, while_e1, while_s1)
+
+    add_s1 = Statement(AssignmentExpression(
+            vm, 'sum', BinaryExpression(vm, 'sum', 'x', '+')))
+
+    for_statement = ForStatement(vm, for_e1, for_e2, for_e3, [while_statement, add_s1])
+    for_statement.push_code()
+    vm.run()
+    logging.warn('result of sum = %d' % vm.inspect('sum'))
+
+
+
+
+
