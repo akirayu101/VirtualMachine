@@ -10,9 +10,13 @@ class Expression(object):
 
     def __init__(self, vm):
         self.vm = vm
+        self.offset = 0
 
     def codegen(self):
         pass
+
+    def set_cur_offset(self, offset):
+        self.offset = offset
 
     def codegen_expression(self, e):
         if isinstance(e, Expression):
@@ -29,12 +33,14 @@ class Expression(object):
         self.vm.C.extend(sub_code)
 
 
-class Statement(object):
+class Statement(Expression):
 
     def __init__(self, exp):
+        super(Statement, self).__init__(None)
         self.exp = exp
 
     def codegen(self):
+        self.exp.set_cur_offset(self.offset)
         return self.exp.codegen() + ['pop']
 
 
@@ -70,13 +76,33 @@ class IfStatement(Expression):
         self.s2 = s2
 
     def codegen(self):
+        '''
+        code e1
+        jumpz A
+        code s1
+        jumpz B
+        A:
+        code s2
+        B:...
+        '''
         codegen_e1 = self.codegen_expression(self.e1)
-        codegen_s1 = list(itertools.chain(*[i.codegen() for i in self.s1]))
-        codegen_s2 = list(itertools.chain(*[i.codegen() for i in self.s2]))
+
+        codegen_s1 = []
+        for statement in self.s1:
+            offset = self.vm.get_program_len() + self.offset + len(codegen_s1) + 1 + len(codegen_e1)
+            statement.set_cur_offset(offset)
+            codegen_s1.extend(statement.codegen())
+
+        codegen_s2 = []
+        for statement in self.s2:
+            offset = self.vm.get_program_len() + self.offset + len(codegen_s1) + 2 + len(codegen_s2) + len(codegen_e1)
+            statement.set_cur_offset(offset)
+            codegen_s2.extend(statement.codegen())
+
         jump_distance_s1 = self.vm.get_program_len() + len(codegen_e1) + \
-            len(codegen_s1) + 2
+            len(codegen_s1) + 2 + self.offset
         jump_distance_s2 = self.vm.get_program_len() + len(codegen_e1) + \
-            len(codegen_s1) + len(codegen_s2) + 2
+            len(codegen_s1) + len(codegen_s2) + 2 + self.offset
 
         return codegen_e1 + ['jumpz ' + str(jump_distance_s1)] + codegen_s1 + [
             'jump ' + str(jump_distance_s2)] + codegen_s2
@@ -91,10 +117,24 @@ class WhileStatement(Expression):
         self.s1 = s1
 
     def codegen(self):
+        '''
+        A:
+        code e1
+        jumpz B
+        code s1
+        jump A
+        B: ...
+        '''
         codegen_e1 = self.codegen_expression(self.e1)
-        codegen_s1 = list(itertools.chain(*[i.codegen() for i in self.s1]))
+
+        codegen_s1 = []
+        for statement in self.s1:
+            offset = self.vm.get_program_len() + self.offset + len(codegen_s1) + 1 + len(codegen_e1)
+            statement.set_cur_offset(offset)
+            codegen_s1.extend(statement.codegen())
+
         jump_distance_s1 = self.vm.get_program_len() + len(codegen_e1) + \
-            len(codegen_s1) + 2
+            len(codegen_s1) + 2 + self.offset
         return codegen_e1 + ['jumpz ' + str(jump_distance_s1)] + codegen_s1 + ['jump ' + str(self.vm.get_program_len())]
 
 
@@ -109,14 +149,30 @@ class ForStatement(Expression):
         self.s1 = s1
 
     def codegen(self):
+        '''
+        A:
+        code e1
+        pop
+        code e2
+        jumpz B
+        code s1
+        code e3
+        jump A
+        B:
+        '''
         codegen_e1 = self.codegen_expression(self.e1)
         codegen_e2 = self.codegen_expression(self.e2)
         codegen_e3 = self.codegen_expression(self.e3)
-        codegen_s1 = list(itertools.chain(*[i.codegen() for i in self.s1]))
 
-        jump_distance_a = self.vm.get_program_len() + len(codegen_e1) + 1
+        codegen_s1 = []
+        for statement in self.s1:
+            offset = self.vm.get_program_len() + self.offset + len(codegen_s1) + 2 + len(codegen_e1) + len(codegen_e2)
+            statement.set_cur_offset(offset)
+            codegen_s1.extend(statement.codegen())
+
+        jump_distance_a = self.vm.get_program_len() + len(codegen_e1) + 1 + self.offset
         jump_distance_b = self.vm.get_program_len() + len(codegen_e1) + \
-            len(codegen_e2) + len(codegen_e3) + len(codegen_s1) + 4
+            len(codegen_e2) + len(codegen_e3) + len(codegen_s1) + 4 + self.offset
 
         return codegen_e1 + ['pop'] + codegen_e2 + ['jumpz ' + str(jump_distance_b)] + codegen_s1 + codegen_e3 + ['pop'] + ['jump ' + str(jump_distance_a)]
 
