@@ -108,13 +108,13 @@ class IfStatement(Expression):
 
         codegen_s1 = []
         for statement in self.s1:
-            offset = self.vm.get_program_len() + self.offset + len(codegen_s1) + 1 + len(codegen_e1)
+            offset = self.offset + len(codegen_s1) + 1 + len(codegen_e1)
             statement.set_cur_offset(offset)
             codegen_s1.extend(statement.codegen())
 
         codegen_s2 = []
         for statement in self.s2:
-            offset = self.vm.get_program_len() + self.offset + len(codegen_s1) + 2 + len(codegen_s2) + len(codegen_e1)
+            offset = self.offset + len(codegen_s1) + 2 + len(codegen_s2) + len(codegen_e1)
             statement.set_cur_offset(offset)
             codegen_s2.extend(statement.codegen())
 
@@ -148,7 +148,7 @@ class WhileStatement(Expression):
 
         codegen_s1 = []
         for statement in self.s1:
-            offset = self.vm.get_program_len() + self.offset + len(codegen_s1) + 1 + len(codegen_e1)
+            offset = self.offset + len(codegen_s1) + 1 + len(codegen_e1)
             statement.set_cur_offset(offset)
             codegen_s1.extend(statement.codegen())
 
@@ -190,7 +190,7 @@ class ForStatement(Expression):
 
         codegen_s1 = []
         for statement in self.s1:
-            offset = self.vm.get_program_len() + self.offset + len(codegen_s1) + 2 + len(codegen_e1) + len(codegen_e2)
+            offset = self.offset + len(codegen_s1) + 2 + len(codegen_e1) + len(codegen_e2)
             statement.set_cur_offset(offset)
             codegen_s1.extend(statement.codegen())
 
@@ -492,6 +492,7 @@ if __name__ == '__main__':
     vm = VM()
     vm.static_assign('x', 0)
     vm.static_assign('sum', 0)
+    vm.S = [0, 0, 1, 1, 1, 1, 1, 1]
 
     for_e1 = AssignmentExpression(vm, 'x', 1)
     for_e2 = BinaryExpression(vm, 'x', 100, '<=')
