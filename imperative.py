@@ -74,6 +74,7 @@ class ContinueStatement(Statement):
 
 
 class PrintStatement(Statement):
+
     def __init__(self, name):
         super(PrintStatement, self).__init__(None)
         self.name = name
@@ -114,7 +115,8 @@ class IfStatement(Expression):
 
         codegen_s2 = []
         for statement in self.s2:
-            offset = self.offset + len(codegen_s1) + 2 + len(codegen_s2) + len(codegen_e1)
+            offset = self.offset + \
+                len(codegen_s1) + 2 + len(codegen_s2) + len(codegen_e1)
             statement.set_cur_offset(offset)
             codegen_s2.extend(statement.codegen())
 
@@ -190,13 +192,16 @@ class ForStatement(Expression):
 
         codegen_s1 = []
         for statement in self.s1:
-            offset = self.offset + len(codegen_s1) + 2 + len(codegen_e1) + len(codegen_e2)
+            offset = self.offset + \
+                len(codegen_s1) + 2 + len(codegen_e1) + len(codegen_e2)
             statement.set_cur_offset(offset)
             codegen_s1.extend(statement.codegen())
 
-        jump_distance_a = self.vm.get_program_len() + len(codegen_e1) + 1 + self.offset
+        jump_distance_a = self.vm.get_program_len() + len(codegen_e1) + \
+            1 + self.offset
         jump_distance_b = self.vm.get_program_len() + len(codegen_e1) + \
-            len(codegen_e2) + len(codegen_e3) + len(codegen_s1) + 4 + self.offset
+            len(codegen_e2) + len(codegen_e3) + \
+            len(codegen_s1) + 4 + self.offset
 
         break_address = jump_distance_b
         continue_address = jump_distance_a
@@ -304,7 +309,8 @@ class IR(object):
             self.vm.PC = address
 
     def show(self, variable_name):
-        logging.warn('show variable name %s[%d]' % (variable_name, self.vm.inspect(variable_name)))
+        logging.warn('show variable name %s[%d]' % (
+            variable_name, self.vm.inspect(variable_name)))
 
     def pop(self):
         self.vm.stack_pop()
@@ -380,11 +386,11 @@ class VM(object):
         return self.S[self.SP + 1]
 
     def stack_push(self, value):
-        if len(self.S) == self.SP + 1:
+        self.SP += 1
+        if len(self.S) == self.SP:
             self.S.append(value)
         else:
-            self.S[self.SP + 1] = value
-        self.SP += 1
+            self.S[self.SP] = value
 
     def stack_top(self):
         return self.S[self.SP]
@@ -489,14 +495,13 @@ if __name__ == '__main__':
     s1 = [
         Statement(AssignmentExpression(
             vm, 'sum', BinaryExpression(vm, 'sum', 'x', '+'))),
-        #PrintStatement('sum'),
+        # PrintStatement('sum'),
     ]
 
     for_statement = ForStatement(vm, e1, e2, e3, s1)
     for_statement.push_code()
     vm.run()
     logging.warn('result of sum = %d' % vm.inspect('sum'))
-
 
     # test 6
     # x = 0 sum = 0
@@ -527,14 +532,10 @@ if __name__ == '__main__':
     while_statement = WhileStatement(vm, while_e1, while_s1)
 
     add_s1 = Statement(AssignmentExpression(
-            vm, 'sum', BinaryExpression(vm, 'sum', 'x', '+')))
+        vm, 'sum', BinaryExpression(vm, 'sum', 'x', '+')))
 
-    for_statement = ForStatement(vm, for_e1, for_e2, for_e3, [while_statement, add_s1])
+    for_statement = ForStatement(
+        vm, for_e1, for_e2, for_e3, [while_statement, add_s1])
     for_statement.push_code()
     vm.run()
     logging.warn('result of sum = %d' % vm.inspect('sum'))
-
-
-
-
-
