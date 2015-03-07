@@ -277,29 +277,29 @@ class IR(object):
         self.init_unary_ops()
 
     def loadc(self, q):
-        self.vm.S.append(q)
+        self.vm.stack_push(q)
 
     def load(self):
-        address = self.vm.S.pop()
-        self.vm.S.append(self.vm.S[address])
+        address = self.vm.stack_pop()
+        self.vm.stack_push(self.vm.S[address])
 
     def loada(self, address):
-        self.vm.S.append(self.vm.S[address])
+        self.vm.stack_push(self.vm.S[address])
 
     def store(self):
-        address = self.vm.S.pop()
-        value = self.vm.S[-1]
+        address = self.vm.stack_pop()
+        value = self.vm.stack_top()
         self.vm.S[address] = value
 
     def storea(self, address):
-        value = self.vm.S[-1]
+        value = self.vm.stack_top()
         self.vm.S[address] = value
 
     def jump(self, address):
         self.vm.PC = address
 
     def jumpz(self, address):
-        value = self.vm.S.pop()
+        value = self.vm.stack_pop()
         if value in [0, False]:
             self.vm.PC = address
 
@@ -307,21 +307,21 @@ class IR(object):
         logging.warn('show variable name %s[%d]' % (variable_name, self.vm.inspect(variable_name)))
 
     def pop(self):
-        self.vm.S.pop()
+        self.vm.stack_pop()
 
     def dup(self):
-        self.vm.S.append(self.vm.S[-1])
+        self.vm.stack_push(self.vm.stack_top())
 
     def binary_op(self, op_name):
-        r = self.vm.S.pop()
-        l = self.vm.S.pop()
+        r = self.vm.stack_pop()
+        l = self.vm.stack_pop()
         lam = self.binary_ops[op_name]
-        self.vm.S.append(lam(l, r))
+        self.vm.stack_push(lam(l, r))
 
     def unary_op(self, op_name):
-        l = self.vm.S.pop()
+        l = self.vm.stack_pop()
         lam = self.unary_ops[op_name]
-        self.vm.S.append(lam(l))
+        self.vm.stack_push(lam(l))
 
     def init_binary_ops(self):
         for k in self.binary_ops.iterkeys():
@@ -349,6 +349,7 @@ class VM(object):
         self.S = []  # main memory
         self.C = []  # program ir stack
         self.PC = 0  # program counter
+        self.SP = -1
         self.IR = IR(self)
         self.stack_frame = StackFrame(self, None)
 
@@ -371,6 +372,20 @@ class VM(object):
     def get_program_len(self):
         return len(self.C)
 
+    def stack_pop(self):
+        self.SP -= 1
+        return self.S[self.SP + 1]
+
+    def stack_push(self, value):
+        if len(self.S) == self.SP + 1:
+            self.S.append(value)
+        else:
+            self.S[self.SP + 1] = value
+        self.SP += 1
+
+    def stack_top(self):
+        return self.S[self.SP]
+
 
 class StackFrame(object):
 
@@ -391,8 +406,8 @@ class StackFrame(object):
     # stack frame assign should already finished before interpret whole
     # program(static allocation)
     def assign(self, name, value):
-        self.vm.S.append(value)
-        self.env[name] = len(self.vm.S) - self.start_frame_addr - 1
+        self.vm.stack_push(value)
+        self.env[name] = self.vm.SP
         pass
 
 
