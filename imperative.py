@@ -312,6 +312,9 @@ class IR(object):
     def dup(self):
         self.vm.stack_push(self.vm.stack_top())
 
+    def alloc(self, name):
+        self.vm.stack_frame.assign(name, None)
+
     def binary_op(self, op_name):
         r = self.vm.stack_pop()
         l = self.vm.stack_pop()
